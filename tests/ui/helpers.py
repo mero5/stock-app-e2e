@@ -5,7 +5,7 @@
 
 import re
 
-from playwright.sync_api import Page, expect
+from playwright.sync_api import Locator, Page, expect
 
 
 def enable_semantics(page: Page) -> None:
@@ -15,6 +15,24 @@ def enable_semantics(page: Page) -> None:
     # 画面外に置かれていて普通のクリックが届かないので、イベントを直接送る
     placeholder.dispatch_event("click")
     page.locator("flt-semantics").first.wait_for(state="attached")
+
+
+def fill_text(page: Page, box: Locator, value: str) -> None:
+    """
+    Flutter Web の入力欄に文字を入れる。
+
+    Flutter は入力欄をタップしてから「入力の受け付け」を準備するので、
+    準備が終わる前に fill すると、入れた文字が空に戻されることがある
+    （2026-10-10：ログインのメール欄が空のままになり、ログイン後のテストが全部止まった）。
+    入れたあとに値が残っているかを確かめて、消えていたら入れ直す。
+    """
+    for _ in range(5):
+        box.click()
+        box.fill(value)
+        page.wait_for_timeout(300)
+        if box.input_value() == value:
+            return
+    raise AssertionError("入力欄に文字が入らない（Flutter 側で消されている）")
 
 
 def dismiss_dialog(page: Page, button: str = "OK") -> None:
@@ -31,8 +49,8 @@ def login(page: Page, email: str, password: str) -> None:
       利用規約（TermsScreen）      → 6項目にチェック →「同意してアプリを始める」
       初回プロファイル設定          →「設定して始める」（テスト用アカウントが未設定の場合だけ）
     """
-    page.get_by_role("textbox", name=re.compile("example@email.com")).fill(email)
-    page.get_by_role("textbox", name=re.compile("8文字以上")).fill(password)
+    fill_text(page, page.get_by_role("textbox", name=re.compile("example@email.com")), email)
+    fill_text(page, page.get_by_role("textbox", name=re.compile("8文字以上")), password)
     page.get_by_role("button", name="ログイン", exact=True).click()
 
     home_tab = bottom_tab(page, "ホーム")
