@@ -66,12 +66,42 @@ python -m venv .venv
 |---|---|---|
 | 2026-10-10 | yfinance が日本株の最新日を「値が空の行」で返し、**日本株の株価・ローソク足・セクター騰落が null** になっていた | K-27（stock_app で修正PR作成済み） |
 
-## 今後（フェーズ2）
+## 画面テスト（Flutter Web × Playwright）
 
-- Flutter の Web 版をビルドし、Playwright のブラウザで**画面のテスト**（ログイン → ホーム → 銘柄詳細）を追加する
-  - Flutter Web は画面を canvas に描くので、アプリ側でセマンティクス（アクセシビリティ用の要素情報）を有効にする必要がある
-  - ログインには**テスト専用のアカウント**を使い、メールアドレスとパスワードは GitHub Secrets に入れる
+stock_app を **Flutter Web** でビルドしてブラウザで開き、Playwright で実際に画面を操作する。
+
+| ファイル | 内容 | 実行に必要なもの |
+|---|---|---|
+| `tests/ui/test_login_screen.py` | ログイン画面の表示、未入力時のエラー、パスワードの表示切替、注意書き | `STOCK_APP_WEB_URL` |
+| `tests/ui/test_logged_in.py` | ログイン → ホーム（6タブ・ウォッチリストの株価）→ 銘柄詳細の5タブ → スケジュール「直近の予定」→ マーケット → 設定 | ＋ `E2E_EMAIL` / `E2E_PASSWORD`（テスト専用アカウント） |
+
+### Flutter Web を Playwright で操作する工夫
+Flutter Web は画面を canvas（絵）に描くので、そのままではボタンを見つけられない。
+画面の裏にある隠しボタン「Enable accessibility」（`flt-semantics-placeholder`）を押すと、セマンティクス（読み上げ用の要素情報）が有効になり、`get_by_role("button", name="ログイン")` のように探せる。**アプリ側のコードは変えていない**（`tests/ui/helpers.py` の `enable_semantics()`）。
+
+### ローカルでの実行
+```powershell
+# stock_app 側
+flutter build web --release
+python -m http.server 8765 --bind 127.0.0.1 --directory build/web
+
+# このリポジトリ側（初回だけブラウザをインストール）
+.\.venv\Scripts\python.exe -m playwright install chromium
+$env:STOCK_APP_WEB_URL="http://127.0.0.1:8765/"
+.\.venv\Scripts\python.exe -m pytest tests/ui --headed   # --headed でブラウザの動きが見える
+```
+
+### テスト専用アカウントの準備（ログイン後のテストを動かすため）
+1. アプリで新規登録する（テスト専用のメールアドレス）。ウォッチリストに「トヨタ自動車（7203）」を1件登録しておく
+2. GitHub のこのリポジトリ → Settings → Secrets and variables → Actions → New repository secret
+   - `E2E_EMAIL`：テスト用アカウントのメールアドレス
+   - `E2E_PASSWORD`：そのパスワード
+
+未登録の間は、ログイン後のテストは自動でスキップされる。
+
+## 今後
 - テストレポートを GitHub Pages で公開し、失敗したら Discord に通知する
+- stock_app のデプロイ後に `repository_dispatch` で自動実行する
 
 ## ルール
 
