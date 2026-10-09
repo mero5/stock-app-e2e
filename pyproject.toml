@@ -1,0 +1,13 @@
+[project]
+name = "stock-app-e2e"
+version = "0.1.0"
+description = "株分析アプリ（mero5/stock_app）のE2Eテスト（Playwright × pytest）"
+requires-python = ">=3.12"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --tb=short"
+markers = [
+    "ai: OpenAIを呼ぶテスト（料金がかかるので RUN_AI_TESTS=1 のときだけ実行）",
+    "pending_deploy: stock_app の未デプロイのPRで直る予定の確認（xfail で記録）",
+]
