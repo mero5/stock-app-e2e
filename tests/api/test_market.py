@@ -112,3 +112,15 @@ def test_セクター騰落が日米とも騰落率の降順(api: APIRequestCont
         assert not missing, f"{region} の騰落率が空のセクター: {missing}"
         assert pcts == sorted(pcts, reverse=True), f"{region} が降順になっていない"
         assert {"name", "ticker", "change_pct", "trend_5d"} <= set(items[0])
+
+
+# ---------- /market/breadth（騰落レシオ。AIに渡す指標の1つ） ----------
+
+def test_騰落レシオが値上がり数と値下がり数から計算されている(api: APIRequestContext):
+    res = api.get("/market/breadth")
+    assert res.ok, res.text()
+    b = res.json()
+    assert b["advancers"] >= 0 and b["decliners"] >= 0, b
+    assert b["advancers"] + b["decliners"] > 0, f"銘柄数が0（データが取れていない）: {b}"
+    if b["decliners"] > 0:
+        assert b["advance_decline_ratio"] == pytest.approx(b["advancers"] / b["decliners"], abs=0.01), b

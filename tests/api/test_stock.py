@@ -9,6 +9,7 @@
 # ===================================================
 
 import math
+import re
 
 import pytest
 from playwright.sync_api import APIRequestContext
@@ -123,3 +124,17 @@ def test_詳細データにNaNが含まれない(api: APIRequestContext):
                 walk(x)
 
     walk(body)
+
+
+# ---------- 銘柄イベント /stock/events（スケジュール画面の決算・配当） ----------
+
+def test_ウォッチリスト銘柄の決算と配当の予定が取れる(api: APIRequestContext):
+    res = api.get("/stock/events", params={"codes": "7203,AAPL"})
+    assert res.ok, res.text()
+    events = res.json()
+    assert events, "トヨタ・Apple のどちらも予定が取れていない"
+    for e in events:
+        assert e["code"] in {"7203", "AAPL"}, e
+        assert e["type"] in {"earnings", "ex_dividend"}, e
+        assert re.fullmatch(r"\d{4}-\d{2}-\d{2}", e["date"]), e
+        assert e["label"], e

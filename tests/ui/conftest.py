@@ -57,7 +57,19 @@ def browser_context_args(browser_context_args):
 
 
 @pytest.fixture
-def app(page: Page) -> Page:
+def last_seen_notice() -> int:
+    """
+    アプリを開く前に「ここまで読んだ」ことにしておくお知らせの version。
+
+    まっさらなブラウザだと全部のお知らせが未読になり、ログイン直後に
+    ポップアップが何枚も出て他のテストの邪魔になるので、既定では全部既読にしておく。
+    ポップアップ自体の確認は test_notice_popup.py で、このフィクスチャを上書きして行う。
+    """
+    return 1_000_000
+
+
+@pytest.fixture
+def app(page: Page, last_seen_notice: int) -> Page:
     """
     アプリを開いて、セマンティクスを有効にした状態の Page を返す。
 
@@ -65,6 +77,10 @@ def app(page: Page) -> Page:
     ログイン状態や「規約に同意済み」などは残っていない。
     """
     page.set_default_timeout(UI_TIMEOUT_MS)
+    # Flutter Web の SharedPreferences は localStorage に「flutter.キー名」で保存される
+    page.add_init_script(
+        f"localStorage.setItem('flutter.last_seen_notice_version', '{last_seen_notice}')"
+    )
     page.goto(os.environ["STOCK_APP_WEB_URL"])
     enable_semantics(page)
     return page
