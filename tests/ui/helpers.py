@@ -57,9 +57,9 @@ def login(page: Page, email: str, password: str) -> None:
     expect(home_tab.first).to_be_visible()
 
 
-def bottom_tab(page: Page, name: str):
+def tab(page: Page, name: str):
     """
-    画面下のタブ（BottomNavigationBar）を名前で探す。
+    タブを名前で探す（画面下のタブ・銘柄詳細の上のタブ・YouTubeの検索/登録 など共通）。
 
     Flutter のタブは、読み上げ用の名前が「ホーム」だけでなく
     「ホーム タブ 1/6」のように番号付きになることがあるので、
@@ -68,3 +68,14 @@ def bottom_tab(page: Page, name: str):
     by_role = page.get_by_role("tab", name=re.compile("^" + re.escape(name)))
     by_text = page.locator("flt-semantics").filter(has_text=re.compile("^" + re.escape(name)))
     return by_role.or_(by_text).first
+
+
+def bottom_tab(page: Page, name: str):
+    """画面下のタブ（BottomNavigationBar）を名前で探す"""
+    return tab(page, name)
+
+
+def open_settings_item(page: Page, name: str) -> None:
+    """設定タブを開いて、項目（お知らせ履歴・AI予測の成績 など）をタップする"""
+    bottom_tab(page, "設定").click()
+    page.get_by_text(name).first.click()

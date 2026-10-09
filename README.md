@@ -20,9 +20,11 @@ stock_app バックエンド（Lambda Function URL）── yfinance / J-Quants 
 | ファイル | 対象API | 主な確認内容 |
 |---|---|---|
 | `tests/api/test_health.py` | `/health` | yfinance・J-Quants の疎通 |
-| `tests/api/test_stock.py` | `/search` `/stock/name` `/stock/price` `/stock/detail` | 日本語・数字・英字での検索、銘柄コードの4桁/5桁の変換、株価・ローソク足・RSI、NaNが混ざらないこと |
-| `tests/api/test_market.py` | `/market/events` `/market/upcoming` `/nikkei/monthly` `/market/sectors` | FOMC・日銀・SQ（第2金曜）・祝日、直近の予定の並び順、セクター騰落の並び順 |
+| `tests/api/test_stock.py` | `/search` `/stock/name` `/stock/price` `/stock/detail` `/stock/events` | 日本語・数字・英字での検索、銘柄コードの4桁/5桁の変換、株価・ローソク足・RSI、NaNが混ざらないこと、決算・配当の予定 |
+| `tests/api/test_market.py` | `/market/events` `/market/upcoming` `/nikkei/monthly` `/market/sectors` `/market/breadth` | FOMC・日銀・SQ（第2金曜）・祝日、直近の予定の並び順、セクター騰落の並び順、騰落レシオの計算 |
 | `tests/api/test_notices.py` | `/notices` | アプリ内のお知らせ（アップデート告知）の形式と、既読管理（`since`） |
+| `tests/api/test_stats.py` | `/stats/predictions` `/stats/accuracy` | AI予測の成績画面の形式（答え合わせの書き込みをしないよう `evaluate=false`） |
+| `tests/api/test_user.py` | `/user/profile`（GET） | 存在しないユーザーで `exists: false` が返ること（本物のユーザーのデータは読まない） |
 | `tests/api/test_ai.py` | `/stock/consult` `/stock/swing_analysis` | AIの回答の形式（**料金がかかるので既定ではスキップ**） |
 
 ### マーカー（テストの分類）
@@ -74,6 +76,8 @@ stock_app を **Flutter Web** でビルドしてブラウザで開き、Playwrig
 |---|---|---|
 | `tests/ui/test_login_screen.py` | ログイン画面の表示、未入力時のエラー、パスワードの表示切替、注意書き | `STOCK_APP_WEB_URL` |
 | `tests/ui/test_logged_in.py` | ログイン → ホーム（6タブ・ウォッチリストの株価）→ 銘柄詳細の5タブ → スケジュール「直近の予定」→ マーケット → 設定 | ＋ `E2E_EMAIL` / `E2E_PASSWORD`（テスト専用アカウント） |
+| `tests/ui/test_logged_in_screens.py` | 下の6タブを順番に全部開く、銘柄検索、銘柄詳細のテクニカル・ファンダ・AI分析・ニュース、YouTube、ポートフォリオ、投資プロファイル、お知らせ履歴、AI予測の成績（**見るだけ。保存・削除・AIの実行はしない**） | 同上 |
+| `tests/ui/test_notice_popup.py` | 最新のお知らせだけ未読にしてログイン → ポップアップが出て閉じられる | 同上 |
 
 ### Flutter Web を Playwright で操作する工夫
 Flutter Web は画面を canvas（絵）に描くので、そのままではボタンを見つけられない。
