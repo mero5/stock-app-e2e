@@ -7,7 +7,11 @@ requires-python = ">=3.12"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-v --tb=short"
+# tests.ui.helpers を import できるようにする
+pythonpath = ["."]
 markers = [
     "ai: OpenAIを呼ぶテスト（料金がかかるので RUN_AI_TESTS=1 のときだけ実行）",
+    "ui: 画面テスト（Flutter Web版。STOCK_APP_WEB_URL が必要）",
+    "login: ログインが必要な画面テスト（E2E_EMAIL / E2E_PASSWORD が必要）",
     "pending_deploy: stock_app の未デプロイのPRで直る予定の確認（xfail で記録）",
 ]

@@ -9,7 +9,7 @@
 #
 # テスト結果は Actions の実行結果ページの「Artifacts」に HTML レポートで残る。
 # ===================================================
-name: E2E (API)
+name: E2E
 
 on:
   push:
@@ -23,6 +23,10 @@ on:
         description: "AIを呼ぶテストも実行する（OpenAIの料金がかかる）"
         type: boolean
         default: false
+      app_ref:
+        description: "画面テストでビルドする stock_app のブランチ・タグ・コミット（PRの確認用）"
+        type: string
+        default: main
   repository_dispatch:
     types: [stock-app-deployed]
 
@@ -48,7 +52,7 @@ jobs:
           STOCK_API_URL: ${{ vars.STOCK_API_URL }}
           RUN_AI_TESTS: ${{ github.event.inputs.run_ai == 'true' && '1' || '0' }}
         run: >
-          pytest -rxXs
+          pytest tests/api -rxXs
           --html=reports/report.html --self-contained-html
           --junitxml=reports/junit.xml
 
@@ -58,4 +62,67 @@ jobs:
         with:
           name: e2e-report
           path: reports/
+          retention-days: 30
+
+  # ===================================================
+  # 画面テスト：stock_app を Flutter Web でビルドして Playwright で操作する
+  # ===================================================
+  ui-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: stock_app を取得
+        uses: actions/checkout@v4
+        with:
+          repository: mero5/stock_app
+          ref: ${{ github.event.inputs.app_ref || github.event.client_payload.ref || 'main' }}
+          path: app
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.41.2   # 開発環境と同じバージョン
+          cache: true
+
+      - name: Web版をビルド
+        working-directory: app
+        run: |
+          flutter pub get
+          flutter build web --release
+
+      - name: Web版を配信（バックグラウンド）
+        run: python -m http.server 8765 --bind 127.0.0.1 --directory app/build/web &
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: 依存ライブラリとブラウザのインストール
+        run: |
+          pip install -r requirements.txt
+          python -m playwright install --with-deps chromium
+
+      - name: 画面テスト
+        env:
+          STOCK_APP_WEB_URL: http://127.0.0.1:8765/
+          # テスト専用アカウント（Settings → Secrets and variables → Actions に登録）
+          # 未登録ならログインが必要なテストはスキップされる
+          E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
+          E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+        run: >
+          pytest tests/ui -rxXs
+          --screenshot only-on-failure --tracing retain-on-failure --output test-results
+          --html=reports/ui-report.html --self-contained-html
+
+      - name: レポート・失敗時のスクリーンショットを保存
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-e2e-report
+          path: |
+            reports/
+            test-results/
           retention-days: 30
