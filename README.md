@@ -1,5 +1,79 @@
 # stock-app-e2e
 
-株分析アプリ [mero5/stock_app](https://github.com/mero5/stock_app) のE2Eテスト（Playwright × pytest）。
+株分析アプリ [mero5/stock_app](https://github.com/mero5/stock_app) の **E2Eテスト**（Playwright × pytest）。
+本番のバックエンド（FastAPI on AWS Lambda）を外から呼び出し、アプリが使っているAPIが正しく動いているかを確認する。GitHub Actions で自動実行する。
 
-中身は PR で追加します。
+> E2Eテスト（End to End）＝ 実際に動いているシステムを、利用者と同じ入口から通しで確認するテスト。
+
+## 何をテストしているか
+
+```
+GitHub Actions（push / PR / 平日9時 / 手動 / stock_appのデプロイ後）
+        │
+        ▼
+pytest ＋ Playwright（APIRequestContext）
+        │ HTTPS
+        ▼
+stock_app バックエンド（Lambda Function URL）── yfinance / J-Quants / DynamoDB / OpenAI
+```
+
+| ファイル | 対象API | 主な確認内容 |
+|---|---|---|
+| `tests/api/test_health.py` | `/health` | yfinance・J-Quants の疎通 |
+| `tests/api/test_stock.py` | `/search` `/stock/name` `/stock/price` `/stock/detail` | 日本語・数字・英字での検索、銘柄コードの4桁/5桁の変換、株価・ローソク足・RSI、NaNが混ざらないこと |
+| `tests/api/test_market.py` | `/market/events` `/market/upcoming` `/nikkei/monthly` `/market/sectors` | FOMC・日銀・SQ（第2金曜）・祝日、直近の予定の並び順、セクター騰落の並び順 |
+| `tests/api/test_notices.py` | `/notices` | アプリ内のお知らせ（アップデート告知）の形式と、既読管理（`since`） |
+| `tests/api/test_ai.py` | `/stock/consult` `/stock/swing_analysis` | AIの回答の形式（**料金がかかるので既定ではスキップ**） |
+
+### マーカー（テストの分類）
+
+| マーカー | 意味 |
+|---|---|
+| `ai` | OpenAI を呼ぶテスト。`RUN_AI_TESTS=1` のときだけ実行する |
+| `pending_deploy` | stock_app の**未デプロイの修正PR**で直る予定のテスト。`xfail`（失敗するのが分かっている）として記録し、デプロイされて成功するようになったら（`XPASS`）マーカーを外す |
+
+## ローカルでの実行
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m pytest
+```
+
+| やりたいこと | コマンド |
+|---|---|
+| HTMLレポートを出す | `pytest --html=reports/report.html --self-contained-html` |
+| AIテストも実行する | `$env:RUN_AI_TESTS="1"; pytest` |
+| 別の環境を叩く | `$env:STOCK_API_URL="https://..."; pytest` |
+| 1ファイルだけ | `pytest tests/api/test_market.py` |
+
+## GitHub Actions
+
+`.github/workflows/e2e.yml`
+
+| きっかけ | 内容 |
+|---|---|
+| main への push、PR | テストコードの変更を確認 |
+| 平日 9:00（JST） | 本番のAPIが壊れていないかの定期チェック |
+| 手動（Run workflow） | `run_ai` にチェックを入れると AI テストも実行 |
+| `repository_dispatch`（`stock-app-deployed`） | stock_app のデプロイ後に呼ぶ想定（連携は今後） |
+
+結果の HTML レポートは、実行結果ページの **Artifacts → e2e-report** からダウンロードできる。
+
+## これまでに見つけた不具合
+
+| 日付 | 内容 | 課題 |
+|---|---|---|
+| 2026-10-10 | yfinance が日本株の最新日を「値が空の行」で返し、**日本株の株価・ローソク足・セクター騰落が null** になっていた | K-27（stock_app で修正PR作成済み） |
+
+## 今後（フェーズ2）
+
+- Flutter の Web 版をビルドし、Playwright のブラウザで**画面のテスト**（ログイン → ホーム → 銘柄詳細）を追加する
+  - Flutter Web は画面を canvas に描くので、アプリ側でセマンティクス（アクセシビリティ用の要素情報）を有効にする必要がある
+  - ログインには**テスト専用のアカウント**を使い、メールアドレスとパスワードは GitHub Secrets に入れる
+- テストレポートを GitHub Pages で公開し、失敗したら Discord に通知する
+
+## ルール
+
+- PR の本文は `.github/pull_request_template.md` に沿って書く
+- **PR のマージはレビュー後に mero5 が行う**（作成者はマージしない）

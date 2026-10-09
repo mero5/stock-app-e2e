@@ -1,0 +1,61 @@
+# ===================================================
+# E2Eテストの自動実行（GitHub Actions）
+#
+# 動くタイミング：
+#   ・main への push / PR の作成・更新
+#   ・平日の朝 9:00（日本時間）… 本番のAPIが壊れていないかの定期チェック
+#   ・手動（Actions 画面の「Run workflow」）… AIテストも回すかを選べる
+#   ・stock_app のデプロイ後（repository_dispatch: stock-app-deployed）
+#
+# テスト結果は Actions の実行結果ページの「Artifacts」に HTML レポートで残る。
+# ===================================================
+name: E2E (API)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "0 0 * * 1-5"   # UTC 0:00 = 日本時間 9:00（月〜金）
+  workflow_dispatch:
+    inputs:
+      run_ai:
+        description: "AIを呼ぶテストも実行する（OpenAIの料金がかかる）"
+        type: boolean
+        default: false
+  repository_dispatch:
+    types: [stock-app-deployed]
+
+jobs:
+  api-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: 依存ライブラリのインストール
+        run: pip install -r requirements.txt
+
+      # APIのテストはブラウザを使わないので playwright install は不要
+      - name: E2Eテスト（API）
+        env:
+          # リポジトリの Settings → Variables で上書きできる（未設定なら本番）
+          STOCK_API_URL: ${{ vars.STOCK_API_URL }}
+          RUN_AI_TESTS: ${{ github.event.inputs.run_ai == 'true' && '1' || '0' }}
+        run: >
+          pytest -rxXs
+          --html=reports/report.html --self-contained-html
+          --junitxml=reports/junit.xml
+
+      - name: レポートを保存
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-report
+          path: reports/
+          retention-days: 30
