@@ -10,7 +10,7 @@ import re
 import pytest
 from playwright.sync_api import Page, expect
 
-from tests.ui.helpers import dismiss_dialog
+from tests.ui.helpers import dismiss_dialog, fill_text
 
 pytestmark = pytest.mark.ui
 
@@ -35,7 +35,7 @@ def test_何も入力せずにログインするとエラーが出る(app: Page)
 
 
 def test_パスワードを入れずにログインするとエラーが出る(app: Page):
-    app.get_by_role("textbox", name=EMAIL).fill("someone@example.com")
+    fill_text(app, app.get_by_role("textbox", name=EMAIL), "someone@example.com")
     app.get_by_role("button", name="ログイン", exact=True).click()
     expect(app.get_by_text("メールアドレスとパスワードを入力してください。")).to_be_visible()
 
@@ -47,7 +47,7 @@ def test_何も入力せずに新規登録するとエラーが出る(app: Page)
 
 def test_パスワードは最初は隠れていて目のボタンで表示できる(app: Page):
     password = app.get_by_role("textbox", name=PASSWORD)
-    password.fill("Secret-123")
+    fill_text(app, password, "Secret-123")
     expect(password).to_have_attribute("type", "password")
 
     # 入力欄の右端の目のアイコン（名前の無いボタン）を押す

@@ -19,7 +19,7 @@ import re
 import pytest
 from playwright.sync_api import APIRequestContext, Page, expect
 
-from tests.ui.helpers import bottom_tab, open_settings_item, tab
+from tests.ui.helpers import bottom_tab, fill_text, open_settings_item, tab
 
 pytestmark = [pytest.mark.ui, pytest.mark.login]
 
@@ -45,7 +45,7 @@ def test_下の6つのタブを順番に全部開ける(logged_in: Page):
 def test_銘柄を検索すると候補が出る(logged_in: Page):
     logged_in.get_by_role("button", name="銘柄を追加").click()
     box = logged_in.get_by_role("textbox", name=re.compile("銘柄名 or コード"))
-    box.fill("トヨタ")
+    fill_text(logged_in, box, "トヨタ")
     expect(logged_in.get_by_text(re.compile("トヨタ自動車")).first).to_be_visible()
     # テスト用アカウントはトヨタを登録済みなので「追加済み」になる
     expect(logged_in.get_by_text("追加済み").first).to_be_visible()
