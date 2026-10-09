@@ -127,7 +127,9 @@ jobs:
 
       - name: 結果の一覧（○×）を表示
         if: always()
-        run: python scripts/summary.py reports/results-ui.json "画面テスト（stock_app: ${{ github.event.inputs.app_ref || github.event.client_payload.ref || 'main' }}）"
+        env:
+          APP_REF: ${{ github.event.inputs.app_ref || github.event.client_payload.ref || 'main' }}
+        run: python scripts/summary.py reports/results-ui.json "画面テスト（stock_app の $APP_REF をビルド）"
 
       - name: レポート・失敗時のスクリーンショットを保存
         if: always()
