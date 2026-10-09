@@ -89,11 +89,28 @@ TERMS_ITEMS = [
 ]
 
 
+def _terms_checked_count(page: Page) -> int:
+    """利用規約の「◯ / 6 確認済み」の◯を読む"""
+    m = re.search(r"(\d+) / \d+ 確認済み", page.get_by_text(re.compile("確認済み")).first.inner_text())
+    return int(m.group(1)) if m else -1
+
+
 def agree_terms(page: Page) -> None:
-    """利用規約の6項目をタップして「同意してアプリを始める」を押す"""
+    """
+    利用規約の6項目をタップして「同意してアプリを始める」を押す。
+
+    タップが反映されないことがある（画面のスクロール中など）ので、
+    1項目押すごとに「確認済み」の数が増えたかを確かめ、増えていなければ押し直す。
+    タップするたびに丸が付いたり外れたりするので、数が減ったときも押し直して戻す。
+    """
     for title in TERMS_ITEMS:
-        # タップするたびに丸が付いたり外れたりするので、全部未チェックの状態から1回ずつ押す
-        page.get_by_role("button", name=re.compile("^" + re.escape(title))).click(timeout=5_000)
+        card = page.get_by_role("button", name=re.compile("^" + re.escape(title)))
+        before = _terms_checked_count(page)
+        for _ in range(4):
+            card.click(timeout=5_000)
+            page.wait_for_timeout(300)
+            if _terms_checked_count(page) > before:
+                break
     expect(page.get_by_text(f"{len(TERMS_ITEMS)} / {len(TERMS_ITEMS)} 確認済み")).to_be_visible()
     page.get_by_role("button", name="同意してアプリを始める").click(timeout=5_000)
 
@@ -109,6 +126,18 @@ def tab(page: Page, name: str):
     by_role = page.get_by_role("tab", name=re.compile("^" + re.escape(name)))
     by_text = page.locator("flt-semantics").filter(has_text=re.compile("^" + re.escape(name)))
     return by_role.or_(by_text).first
+
+
+def text(page: Page, value: str, exact: bool = False) -> Locator:
+    """
+    画面に出ている文字を探す。
+
+    Flutter は、カードなどのまとまりの中の文字を、要素の文字ではなく
+    「読み上げ用の名前（aria-label）」として持つことがある（設定の投資プロファイルなど）。
+    get_by_text だけだと見つからないので、読み上げ用の名前でも探す。
+    """
+    pattern = re.compile(("^" + re.escape(value) + "$") if exact else re.escape(value))
+    return page.get_by_text(pattern).or_(page.get_by_label(pattern)).first
 
 
 def bottom_tab(page: Page, name: str):

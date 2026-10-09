@@ -19,7 +19,7 @@ import re
 import pytest
 from playwright.sync_api import APIRequestContext, Page, expect
 
-from tests.ui.helpers import bottom_tab, fill_text, open_settings_item, tab
+from tests.ui.helpers import bottom_tab, fill_text, open_settings_item, tab, text
 
 pytestmark = [pytest.mark.ui, pytest.mark.login]
 
@@ -37,7 +37,7 @@ TAB_TITLES = [
 def test_下の6つのタブを順番に全部開ける(logged_in: Page):
     for name, title in TAB_TITLES:
         bottom_tab(logged_in, name).click()
-        expect(logged_in.get_by_text(title, exact=True).first).to_be_visible()
+        expect(text(logged_in, title, exact=True)).to_be_visible()
 
 
 # ---------- ホーム → 銘柄を追加（検索） ----------
@@ -46,43 +46,43 @@ def test_銘柄を検索すると候補が出る(logged_in: Page):
     logged_in.get_by_role("button", name="銘柄を追加").click()
     box = logged_in.get_by_role("textbox", name=re.compile("銘柄名 or コード"))
     fill_text(logged_in, box, "トヨタ")
-    expect(logged_in.get_by_text(re.compile("トヨタ自動車")).first).to_be_visible()
+    expect(text(logged_in, "トヨタ自動車")).to_be_visible()
     # テスト用アカウントはトヨタを登録済みなので「追加済み」になる
-    expect(logged_in.get_by_text("追加済み").first).to_be_visible()
+    expect(text(logged_in, "追加済み")).to_be_visible()
 
 
 # ---------- 銘柄詳細の中身 ----------
 
 def test_銘柄詳細のテクニカルとファンダに指標が出る(logged_in: Page):
-    logged_in.get_by_text(re.compile("トヨタ")).first.click()
+    text(logged_in, "トヨタ").click()
     tab(logged_in, "テクニカル").click()
-    expect(logged_in.get_by_text("RSI（相対力指数）").first).to_be_visible()
+    expect(text(logged_in, "RSI（相対力指数）")).to_be_visible()
     tab(logged_in, "ファンダ").click()
-    expect(logged_in.get_by_text("PER（株価収益率）").first).to_be_visible()
+    expect(text(logged_in, "PER（株価収益率）")).to_be_visible()
 
 
 def test_銘柄詳細のAI分析とニュースはボタンが出る(logged_in: Page):
     """ボタンは押さない（OpenAI の料金がかかる）"""
-    logged_in.get_by_text(re.compile("トヨタ")).first.click()
+    text(logged_in, "トヨタ").click()
     tab(logged_in, "AI分析").click()
-    expect(logged_in.get_by_text("AI分析を実行").first).to_be_visible()
+    expect(text(logged_in, "AI分析を実行")).to_be_visible()
     tab(logged_in, "ニュース").click()
-    expect(logged_in.get_by_text("ニュースを取得する").first).to_be_visible()
+    expect(text(logged_in, "ニュースを取得する")).to_be_visible()
 
 
 # ---------- YouTube・ポートフォリオ ----------
 
 def test_YouTubeに検索と登録のタブがある(logged_in: Page):
     bottom_tab(logged_in, "YouTube").click()
-    expect(logged_in.get_by_text("YouTube要約", exact=True).first).to_be_visible()
+    expect(text(logged_in, "YouTube要約", exact=True)).to_be_visible()
     for name in ["検索", "登録"]:
         expect(tab(logged_in, name)).to_be_visible()
 
 
 def test_ポートフォリオに銘柄追加と注意書きが出る(logged_in: Page):
     bottom_tab(logged_in, "ポートフォリオ").click()
-    expect(logged_in.get_by_text("銘柄を追加").first).to_be_visible()
-    expect(logged_in.get_by_text(re.compile("サーバーに保存されません")).first).to_be_visible()
+    expect(text(logged_in, "銘柄を追加")).to_be_visible()
+    expect(text(logged_in, "サーバーに保存されません")).to_be_visible()
 
 
 # ---------- 設定の中の画面 ----------
@@ -90,7 +90,7 @@ def test_ポートフォリオに銘柄追加と注意書きが出る(logged_in:
 def test_設定に投資プロファイルの中身が出る(logged_in: Page):
     bottom_tab(logged_in, "設定").click()
     for name in ["投資期間", "取引種別", "リスク許容度", "投資経験"]:
-        expect(logged_in.get_by_text(name).first).to_be_visible()
+        expect(text(logged_in, name)).to_be_visible()
 
 
 def test_お知らせ履歴に過去のお知らせが出る(logged_in: Page, api: APIRequestContext):
@@ -99,7 +99,7 @@ def test_お知らせ履歴に過去のお知らせが出る(logged_in: Page, ap
     latest = res.json()["notices"][-1]
 
     open_settings_item(logged_in, "お知らせ履歴")
-    expect(logged_in.get_by_text(latest["title"]).first).to_be_visible()
+    expect(text(logged_in, latest["title"])).to_be_visible()
     expect(logged_in.get_by_text(re.compile("お知らせを取得できませんでした"))).to_have_count(0)
 
 
