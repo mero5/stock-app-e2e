@@ -138,3 +138,35 @@ def test_ウォッチリスト銘柄の決算と配当の予定が取れる(api:
         assert e["type"] in {"earnings", "ex_dividend"}, e
         assert re.fullmatch(r"\d{4}-\d{2}-\d{2}", e["date"]), e
         assert e["label"], e
+
+
+# ---------- 2026-10-10 に見つけた不具合の再発防止 ----------
+
+@pytest.mark.pending_deploy
+@pytest.mark.xfail(reason="K-31：米国株の決算日が出ない（stock_app#23 のデプロイ待ち）", strict=False)
+def test_米国株の決算発表日が取れる(api: APIRequestContext):
+    # yfinance の calendar が dict を返すようになり、米国株の決算日が一度も出ていなかった
+    res = api.get("/stock/events", params={"codes": "AAPL"})
+    assert res.ok, res.text()
+    types = [e["type"] for e in res.json()]
+    assert "earnings" in types, f"Apple の決算発表日が無い: {res.json()}"
+
+
+@pytest.mark.pending_deploy
+@pytest.mark.xfail(reason="K-34：英字入りの銘柄コードが検索できない（stock_app#26 のデプロイ待ち）", strict=False)
+def test_英字入りの銘柄コードで検索できる(api: APIRequestContext):
+    # 2024年から東証は 285A（キオクシア）のような英字入りのコードを使っている
+    res = api.get("/search", params={"q": "285a"})
+    assert res.ok, res.text()
+    codes = [r["code"] for r in res.json()]
+    assert "285A0" in codes, f"キオクシア（285A0）が見つからない: {codes}"
+
+
+@pytest.mark.pending_deploy
+@pytest.mark.xfail(reason="K-34：英字入りの銘柄コードの株価が取れない（stock_app#26 のデプロイ待ち）", strict=False)
+@pytest.mark.parametrize("code", ["285A", "285A0"])
+def test_英字入りの銘柄コードの株価が取れる(api: APIRequestContext, code):
+    res = api.get("/stock/price", params={"code": code})
+    assert res.ok, res.text()
+    body = res.json()
+    assert body["price"] is not None, f"{code} の株価が null: {body}"
