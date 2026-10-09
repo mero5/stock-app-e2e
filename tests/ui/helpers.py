@@ -58,12 +58,14 @@ def login(page: Page, email: str, password: str) -> None:
     skip = page.get_by_role("button", name="スキップ")
     terms_agree = page.get_by_text(re.compile("確認済み")).first
     profile_start = page.get_by_role("button", name="設定して始める")
+    # 未読のお知らせのポップアップ（ホームの上に出る）。閉じるのは呼び出し側に任せる
+    notice_button = page.get_by_role("button", name=re.compile("^(閉じる|次へ)$"))
 
     # どの画面が出るかはアカウントと端末の状態次第なので、順番に確認して進める。
     # 画面の切り替えアニメーション中に押すと届かないことがあるので、
     # 押せなかったら次の周でもう一度、今どの画面かを確かめ直す。
     for _ in range(8):
-        expect(home_tab.or_(skip).or_(terms_agree).or_(profile_start).first).to_be_visible()
+        expect(home_tab.or_(skip).or_(terms_agree).or_(profile_start).or_(notice_button).first).to_be_visible()
         try:
             if skip.is_visible():
                 skip.click(timeout=5_000)
@@ -71,6 +73,8 @@ def login(page: Page, email: str, password: str) -> None:
                 agree_terms(page)
             elif profile_start.is_visible():
                 profile_start.click(timeout=5_000)
+            elif notice_button.first.is_visible():
+                return
             else:
                 return
         except PlaywrightTimeoutError:

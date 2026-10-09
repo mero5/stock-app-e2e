@@ -9,6 +9,8 @@
 import pytest
 from playwright.sync_api import APIRequestContext, Page, expect
 
+from tests.ui.helpers import text
+
 pytestmark = [pytest.mark.ui, pytest.mark.login]
 
 
@@ -26,6 +28,6 @@ def last_seen_notice(latest_notice: dict) -> int:
 
 
 def test_未読のお知らせがログイン後に出て閉じられる(logged_in: Page, latest_notice: dict):
-    expect(logged_in.get_by_text(latest_notice["title"]).first).to_be_visible()
+    expect(text(logged_in, latest_notice["title"])).to_be_visible()
     logged_in.get_by_role("button", name="閉じる").click()
-    expect(logged_in.get_by_text(latest_notice["title"])).to_have_count(0)
+    expect(text(logged_in, latest_notice["title"])).to_be_hidden()
