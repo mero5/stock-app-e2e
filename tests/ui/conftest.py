@@ -24,9 +24,10 @@
 # ===================================================
 
 import os
+import re
 
 import pytest
-from playwright.sync_api import Page
+from playwright.sync_api import Page, Route
 
 from tests.ui.helpers import enable_semantics, login
 
@@ -56,6 +57,30 @@ def browser_context_args(browser_context_args):
     return {**browser_context_args, "viewport": PHONE_VIEWPORT, "locale": "ja-JP"}
 
 
+# ウォッチリスト・スケジュールの保存先（API Gateway）。
+# ブラウザからの呼び出しを許可する設定（CORS）が無いので、Web版ではブラウザに通信を止められる。
+# スマホアプリには CORS の制限が無いので、実際のユーザーには影響しない。
+API_GATEWAY = re.compile(r"^https://[a-z0-9]+\.execute-api\.ap-northeast-1\.amazonaws\.com/")
+CORS_HEADERS = {
+    "access-control-allow-origin": "*",
+    "access-control-allow-headers": "*",
+    "access-control-allow-methods": "GET,POST,PUT,DELETE,OPTIONS",
+}
+
+
+def _relay_without_cors(route: Route) -> None:
+    """
+    API Gateway への通信を Playwright（ブラウザの外）から代わりに送り、
+    返ってきた結果に CORS の許可を付けてブラウザに渡す。
+    AWS の設定は変えずに、テストのブラウザの中だけで通す。
+    """
+    if route.request.method == "OPTIONS":
+        route.fulfill(status=204, headers=CORS_HEADERS)
+        return
+    res = route.fetch()
+    route.fulfill(response=res, headers={**res.headers, **CORS_HEADERS})
+
+
 @pytest.fixture
 def last_seen_notice() -> int:
     """
@@ -77,6 +102,7 @@ def app(page: Page, last_seen_notice: int) -> Page:
     ログイン状態や「規約に同意済み」などは残っていない。
     """
     page.set_default_timeout(UI_TIMEOUT_MS)
+    page.route(API_GATEWAY, _relay_without_cors)
     # Flutter Web の SharedPreferences は localStorage に「flutter.キー名」で保存される
     page.add_init_script(
         f"localStorage.setItem('flutter.last_seen_notice_version', '{last_seen_notice}')"
