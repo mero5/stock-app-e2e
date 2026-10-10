@@ -170,3 +170,16 @@ def test_英字入りの銘柄コードの株価が取れる(api: APIRequestCont
     assert res.ok, res.text()
     body = res.json()
     assert body["price"] is not None, f"{code} の株価が null: {body}"
+
+
+@pytest.mark.pending_deploy
+@pytest.mark.xfail(reason="K-41：ウォッチリストのまとめ取得 /stock/quotes が無い（stock_app#35 のデプロイ待ち）", strict=False)
+def test_ウォッチリストの銘柄名と株価をまとめて取れる(api: APIRequestContext):
+    # 以前は銘柄ごとに /stock/name・/stock/price を全部同時に呼び、
+    # Lambda の同時実行数の上限を超えた分が断られて株価「---」・名前がコードになっていた
+    res = api.get("/stock/quotes", params={"codes": "72030,AAPL"})
+    assert res.ok, res.text()
+    quotes = res.json()["quotes"]
+    assert [q["code"] for q in quotes] == ["72030", "AAPL"], quotes
+    assert "トヨタ" in quotes[0]["name"], f"銘柄名がコードのまま: {quotes[0]}"
+    assert all(q["price"] is not None for q in quotes), f"株価が null（土日でも直近の終値が出るはず）: {quotes}"
