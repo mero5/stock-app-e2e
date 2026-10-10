@@ -7,7 +7,8 @@
 #   ・手動（Actions 画面の「Run workflow」）… AIテストも回すかを選べる
 #   ・stock_app のデプロイ後（repository_dispatch: stock-app-deployed）
 #
-# テスト結果は Actions の実行結果ページの「Artifacts」に HTML レポートで残る。
+# テスト結果は、Actions の実行結果ページの先頭（Summary）に機能ごとの○×の表で出る。
+# 詳しいレポート（HTML・失敗時のスクリーンショット）は同じページの「Artifacts」に残る。
 # ===================================================
 name: E2E
 
@@ -51,10 +52,16 @@ jobs:
           # リポジトリの Settings → Variables で上書きできる（未設定なら本番）
           STOCK_API_URL: ${{ vars.STOCK_API_URL }}
           RUN_AI_TESTS: ${{ github.event.inputs.run_ai == 'true' && '1' || '0' }}
+          E2E_RESULTS: reports/results-api.json
         run: >
           pytest tests/api -rxXs
           --html=reports/report.html --self-contained-html
           --junitxml=reports/junit.xml
+
+      # 実行結果ページの先頭に、機能ごとの○×の表を出す（失敗しても必ず出す）
+      - name: 結果の一覧（○×）を表示
+        if: always()
+        run: python scripts/summary.py reports/results-api.json "APIテスト"
 
       - name: レポートを保存
         if: always()
@@ -112,10 +119,17 @@ jobs:
           # 未登録ならログインが必要なテストはスキップされる
           E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
           E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+          E2E_RESULTS: reports/results-ui.json
         run: >
           pytest tests/ui -rxXs
           --screenshot only-on-failure --tracing retain-on-failure --output test-results
           --html=reports/ui-report.html --self-contained-html
+
+      - name: 結果の一覧（○×）を表示
+        if: always()
+        env:
+          APP_REF: ${{ github.event.inputs.app_ref || github.event.client_payload.ref || 'main' }}
+        run: python scripts/summary.py reports/results-ui.json "画面テスト（stock_app の $APP_REF をビルド）"
 
       - name: レポート・失敗時のスクリーンショットを保存
         if: always()

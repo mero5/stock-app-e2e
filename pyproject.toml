@@ -6,7 +6,7 @@ requires-python = ">=3.12"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-v --tb=short"
+addopts = "-v --tb=short -p tests.result_recorder"
 # tests.ui.helpers を import できるようにする
 pythonpath = ["."]
 markers = [
