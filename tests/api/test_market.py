@@ -126,6 +126,15 @@ def test_騰落レシオが値上がり数と値下がり数から計算され�
         assert b["advance_decline_ratio"] == pytest.approx(b["advancers"] / b["decliners"], abs=0.01), b
 
 
+@pytest.mark.pending_deploy
+@pytest.mark.xfail(reason="K-43：権利落ち日が「目安」で祝日・年末がずれる（stock_app#36 のデプロイ待ち）", strict=False)
+def test_権利落ち日が東証の休業日をふまえた日付で出る(api: APIRequestContext):
+    # 2026年12月は 12/31 が休場なので、権利確定日 12/30・権利落ち日 12/29。
+    # 以前は土日だけで数えて 12/30 を「権利落ち日（目安）」として出していた
+    rights = [e for e in _events(api, 2026, 12) if e["type"] == "rights"]
+    assert [(e["date"], e["label"]) for e in rights] == [("2026-12-29", "権利落ち日")], rights
+
+
 # ---------- 2026-10-10（2回目の調査）の不具合の再発防止 ----------
 
 @pytest.mark.pending_deploy
