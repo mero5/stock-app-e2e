@@ -52,8 +52,6 @@ def test_イベントの項目がそろっている(api: APIRequestContext):
         assert {"date", "label", "type", "color"} <= set(e), e
 
 
-@pytest.mark.pending_deploy
-@pytest.mark.xfail(reason="stock_app の PR「FOMC・日銀の2027年の日程を追加」がデプロイされるまでは失敗する（課題 K-01）", strict=False)
 def test_2027年のFOMCと日銀が出る(api: APIRequestContext):
     events = _events(api, 2027, 1)
     pairs = {(e["date"], e["type"]) for e in events}
@@ -75,8 +73,6 @@ def test_直近の予定は日付順で今日以降(api: APIRequestContext, toda
     assert dates[0] >= str(today_jst - timedelta(days=1)), dates[0]
 
 
-@pytest.mark.pending_deploy
-@pytest.mark.xfail(reason="stock_app の PR「日付・時刻を日本時間（JST）基準に統一」がデプロイされるまでは、日本時間0〜9時に失敗しうる（課題 K-02）", strict=False)
 def test_直近の予定の今日が日本時間(api: APIRequestContext, today_jst):
     res = api.get("/market/upcoming", params={"months": 1})
     dates = [e["date"] for e in res.json()]
@@ -98,8 +94,6 @@ def test_日経平均の月次データ(api: APIRequestContext):
 
 # ---------- /market/sectors ----------
 
-@pytest.mark.pending_deploy
-@pytest.mark.xfail(reason="stock_app の PR「日本株の株価・指標が null になる不具合を修正」がデプロイされるまでは、yfinanceが最新日を空の行で返す日に失敗する（課題 K-27）", strict=False)
 def test_セクター騰落が日米とも騰落率の降順(api: APIRequestContext):
     res = api.get("/market/sectors", params={"period": "5d"})
     assert res.ok, res.text()
@@ -123,11 +117,10 @@ def test_騰落レシオが値上がり数と値下がり数から計算され�
     assert b["advancers"] >= 0 and b["decliners"] >= 0, b
     assert b["advancers"] + b["decliners"] > 0, f"銘柄数が0（データが取れていない）: {b}"
     if b["decliners"] > 0:
-        assert b["advance_decline_ratio"] == pytest.approx(b["advancers"] / b["decliners"], abs=0.01), b
+        # #10（2026-10-10 デプロイ）で騰落レシオを「%」に変えた（例：上昇19・下落11 → 172.7）
+        assert b["advance_decline_ratio"] == pytest.approx(b["advancers"] / b["decliners"] * 100, abs=0.1), b
 
 
-@pytest.mark.pending_deploy
-@pytest.mark.xfail(reason="K-43：権利落ち日が「目安」で祝日・年末がずれる（stock_app#36 のデプロイ待ち）", strict=False)
 def test_権利落ち日が東証の休業日をふまえた日付で出る(api: APIRequestContext):
     # 2026年12月は 12/31 が休場なので、権利確定日 12/30・権利落ち日 12/29。
     # 以前は土日だけで数えて 12/30 を「権利落ち日（目安）」として出していた
@@ -137,8 +130,6 @@ def test_権利落ち日が東証の休業日をふまえた日付で出る(api:
 
 # ---------- 2026-10-10（2回目の調査）の不具合の再発防止 ----------
 
-@pytest.mark.pending_deploy
-@pytest.mark.xfail(reason="K-45：日本のセクターETFの名前が17本中15本ずれている（stock_app#38 のデプロイ待ち）", strict=False)
 def test_日本のセクターETFの名前がTOPIX17の業種と合っている(api: APIRequestContext):
     # JPX の ETF 一覧：1617 は「TOPIX-17 食品」、1625 は「電機・精密」、1631 は「銀行」
     res = api.get("/market/sectors", params={"period": "5d"})

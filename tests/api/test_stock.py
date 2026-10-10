@@ -63,8 +63,8 @@ def test_4桁でも5桁でも銘柄名が取れる(api: APIRequestContext, code:
 # ---------- 株価 /stock/price（ホーム画面の一覧用） ----------
 
 @pytest.mark.parametrize("code", [
-    pytest.param("7203", marks=[pytest.mark.pending_deploy, pytest.mark.xfail(reason="K-27：日本株の最新日が空の行で返ると price が null（修正PRのデプロイ待ち）", strict=False)]),
-    pytest.param("72030", marks=[pytest.mark.pending_deploy, pytest.mark.xfail(reason="K-27：同上", strict=False)]),
+    pytest.param("7203"),
+    pytest.param("72030"),
     "AAPL",
 ])
 def test_株価と前日比が取れる(api: APIRequestContext, code: str):
@@ -79,8 +79,6 @@ def test_株価と前日比が取れる(api: APIRequestContext, code: str):
 
 # ---------- 詳細 /stock/detail（詳細画面のチャート・指標） ----------
 
-@pytest.mark.pending_deploy
-@pytest.mark.xfail(reason="stock_app の PR「日本株の株価・指標が null になる不具合を修正」がデプロイされるまでは、yfinanceが最新日を空の行で返す日に失敗する（課題 K-27）", strict=False)
 def test_詳細データにチャート用のローソク足と指標が入っている(api: APIRequestContext):
     res = api.get("/stock/detail", params={"code": "7203"})
     assert res.ok, res.text()
@@ -142,8 +140,6 @@ def test_ウォッチリスト銘柄の決算と配当の予定が取れる(api:
 
 # ---------- 2026-10-10 に見つけた不具合の再発防止 ----------
 
-@pytest.mark.pending_deploy
-@pytest.mark.xfail(reason="K-31：米国株の決算日が出ない（stock_app#23 のデプロイ待ち）", strict=False)
 def test_米国株の決算発表日が取れる(api: APIRequestContext):
     # yfinance の calendar が dict を返すようになり、米国株の決算日が一度も出ていなかった
     res = api.get("/stock/events", params={"codes": "AAPL"})
@@ -152,8 +148,6 @@ def test_米国株の決算発表日が取れる(api: APIRequestContext):
     assert "earnings" in types, f"Apple の決算発表日が無い: {res.json()}"
 
 
-@pytest.mark.pending_deploy
-@pytest.mark.xfail(reason="K-34：英字入りの銘柄コードが検索できない（stock_app#26 のデプロイ待ち）", strict=False)
 def test_英字入りの銘柄コードで検索できる(api: APIRequestContext):
     # 2024年から東証は 285A（キオクシア）のような英字入りのコードを使っている
     res = api.get("/search", params={"q": "285a"})
@@ -162,8 +156,6 @@ def test_英字入りの銘柄コードで検索できる(api: APIRequestContext
     assert "285A0" in codes, f"キオクシア（285A0）が見つからない: {codes}"
 
 
-@pytest.mark.pending_deploy
-@pytest.mark.xfail(reason="K-34：英字入りの銘柄コードの株価が取れない（stock_app#26 のデプロイ待ち）", strict=False)
 @pytest.mark.parametrize("code", ["285A", "285A0"])
 def test_英字入りの銘柄コードの株価が取れる(api: APIRequestContext, code):
     res = api.get("/stock/price", params={"code": code})
@@ -172,8 +164,6 @@ def test_英字入りの銘柄コードの株価が取れる(api: APIRequestCont
     assert body["price"] is not None, f"{code} の株価が null: {body}"
 
 
-@pytest.mark.pending_deploy
-@pytest.mark.xfail(reason="K-41：ウォッチリストのまとめ取得 /stock/quotes が無い（stock_app#35 のデプロイ待ち）", strict=False)
 def test_ウォッチリストの銘柄名と株価をまとめて取れる(api: APIRequestContext):
     # 以前は銘柄ごとに /stock/name・/stock/price を全部同時に呼び、
     # Lambda の同時実行数の上限を超えた分が断られて株価「---」・名前がコードになっていた
@@ -185,8 +175,6 @@ def test_ウォッチリストの銘柄名と株価をまとめて取れる(api:
     assert all(q["price"] is not None for q in quotes), f"株価が null（土日でも直近の終値が出るはず）: {quotes}"
 
 
-@pytest.mark.pending_deploy
-@pytest.mark.xfail(reason="K-46：配当利回りが100倍（stock_app#39 のデプロイ待ち）", strict=False)
 def test_配当利回りが割合で返る(api: APIRequestContext):
     # アプリは割合（0.0344）を ×100 して表示する。以前は yfinance の % をそのまま返して「344%」になっていた
     res = api.get("/stock/detail", params={"code": "7203"})
@@ -195,8 +183,6 @@ def test_配当利回りが割合で返る(api: APIRequestContext):
     assert dy is not None and 0 < dy < 0.2, f"配当利回りが割合になっていない: {dy}"
 
 
-@pytest.mark.pending_deploy
-@pytest.mark.xfail(reason="K-50：詳細APIに本当の52週の高値・安値が無い（stock_app#43 のデプロイ待ち）", strict=False)
 def test_詳細APIが52週の高値と安値を返す(api: APIRequestContext):
     res = api.get("/stock/detail", params={"code": "7203"})
     assert res.ok, res.text()
@@ -205,8 +191,6 @@ def test_詳細APIが52週の高値と安値を返す(api: APIRequestContext):
     assert body["week52_low"] <= body["price"] <= body["week52_high"]
 
 
-@pytest.mark.pending_deploy
-@pytest.mark.xfail(reason="K-47：日本株の決算日が出ない（stock_app#40 のデプロイ待ち。J-Quants の契約プランによっては出ない）", strict=False)
 def test_日本株の決算発表日が取れる(api: APIRequestContext):
     # 以前は V2 に存在しない /v2/fins/announcement を呼んでいて、日本株の決算日が一度も出ていなかった
     res = api.get("/stock/events", params={"codes": "72030,67580,83060"})
@@ -215,8 +199,6 @@ def test_日本株の決算発表日が取れる(api: APIRequestContext):
     assert earnings, f"日本株の決算発表日が1件も無い: {res.json()}"
 
 
-@pytest.mark.pending_deploy
-@pytest.mark.xfail(reason="銘柄の画像（stock_app#35・#46 のデプロイ待ち）", strict=False)
 def test_ウォッチリストのまとめ取得が銘柄の画像を返す(api: APIRequestContext):
     res = api.get("/stock/quotes", params={"codes": "AAPL"})
     assert res.ok, res.text()
