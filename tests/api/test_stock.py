@@ -183,3 +183,43 @@ def test_ウォッチリストの銘柄名と株価をまとめて取れる(api:
     assert [q["code"] for q in quotes] == ["72030", "AAPL"], quotes
     assert "トヨタ" in quotes[0]["name"], f"銘柄名がコードのまま: {quotes[0]}"
     assert all(q["price"] is not None for q in quotes), f"株価が null（土日でも直近の終値が出るはず）: {quotes}"
+
+
+@pytest.mark.pending_deploy
+@pytest.mark.xfail(reason="K-46：配当利回りが100倍（stock_app#39 のデプロイ待ち）", strict=False)
+def test_配当利回りが割合で返る(api: APIRequestContext):
+    # アプリは割合（0.0344）を ×100 して表示する。以前は yfinance の % をそのまま返して「344%」になっていた
+    res = api.get("/stock/detail", params={"code": "7203"})
+    assert res.ok, res.text()
+    dy = res.json().get("dividend_yield")
+    assert dy is not None and 0 < dy < 0.2, f"配当利回りが割合になっていない: {dy}"
+
+
+@pytest.mark.pending_deploy
+@pytest.mark.xfail(reason="K-50：詳細APIに本当の52週の高値・安値が無い（stock_app#43 のデプロイ待ち）", strict=False)
+def test_詳細APIが52週の高値と安値を返す(api: APIRequestContext):
+    res = api.get("/stock/detail", params={"code": "7203"})
+    assert res.ok, res.text()
+    body = res.json()
+    assert body.get("week52_high") and body.get("week52_low"), body.keys()
+    assert body["week52_low"] <= body["price"] <= body["week52_high"]
+
+
+@pytest.mark.pending_deploy
+@pytest.mark.xfail(reason="K-47：日本株の決算日が出ない（stock_app#40 のデプロイ待ち。J-Quants の契約プランによっては出ない）", strict=False)
+def test_日本株の決算発表日が取れる(api: APIRequestContext):
+    # 以前は V2 に存在しない /v2/fins/announcement を呼んでいて、日本株の決算日が一度も出ていなかった
+    res = api.get("/stock/events", params={"codes": "72030,67580,83060"})
+    assert res.ok, res.text()
+    earnings = [e for e in res.json() if e["type"] == "earnings"]
+    assert earnings, f"日本株の決算発表日が1件も無い: {res.json()}"
+
+
+@pytest.mark.pending_deploy
+@pytest.mark.xfail(reason="銘柄の画像（stock_app#35・#46 のデプロイ待ち）", strict=False)
+def test_ウォッチリストのまとめ取得が銘柄の画像を返す(api: APIRequestContext):
+    res = api.get("/stock/quotes", params={"codes": "AAPL"})
+    assert res.ok, res.text()
+    quote = res.json()["quotes"][0]
+    assert "logo_url" in quote, quote
+    assert quote["logo_url"] and "apple.com" in quote["logo_url"], quote
