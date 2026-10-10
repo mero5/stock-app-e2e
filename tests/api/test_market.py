@@ -124,3 +124,19 @@ def test_騰落レシオが値上がり数と値下がり数から計算され�
     assert b["advancers"] + b["decliners"] > 0, f"銘柄数が0（データが取れていない）: {b}"
     if b["decliners"] > 0:
         assert b["advance_decline_ratio"] == pytest.approx(b["advancers"] / b["decliners"], abs=0.01), b
+
+
+# ---------- 2026-10-10（2回目の調査）の不具合の再発防止 ----------
+
+@pytest.mark.pending_deploy
+@pytest.mark.xfail(reason="K-45：日本のセクターETFの名前が17本中15本ずれている（stock_app#38 のデプロイ待ち）", strict=False)
+def test_日本のセクターETFの名前がTOPIX17の業種と合っている(api: APIRequestContext):
+    # JPX の ETF 一覧：1617 は「TOPIX-17 食品」、1625 は「電機・精密」、1631 は「銀行」
+    res = api.get("/market/sectors", params={"period": "5d"})
+    assert res.ok, res.text()
+    names = {s["ticker"]: s["name"] for s in res.json()["jp"]}
+    expected = {"1617.T": "食品", "1625.T": "電機・精密", "1631.T": "銀行"}
+    for ticker, name in expected.items():
+        if ticker in names:  # yfinance で取れなかったETFは返らないことがある
+            assert names[ticker] == name, f"{ticker} の名前が {names[ticker]}（正しくは {name}）"
+    assert set(expected) & set(names), f"確認するETFが1本も返らない: {names}"
